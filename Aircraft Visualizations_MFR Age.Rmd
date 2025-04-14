@@ -1,0 +1,127 @@
+---
+title: "Aircraft Visualization"
+author: "Group 5"
+date: "`r Sys.Date()`"
+output: openintro::lab_report
+---
+
+```{r load-packages, message=FALSE}
+library(tidyverse)
+library(openintro)
+library(ggplot2)
+```
+
+
+### Considerations
+1) age: discrete, carrier delay: continuous.
+2) aircraft with no delays are not included in any of the visualizations, so there should be one that shows the ratio between how many flights have some issues and how many take off on time.
+
+### Importing the dataset
+```{r import data}
+aircrafts_ages_raw <- read.csv("ALL_YEARS_DATA.csv")
+
+aircrafts_ages_since_2003 <- aircrafts_ages_raw |>
+  filter(AGE <= 22)
+
+#View(aircrafts_ages_raw)
+```
+
+
+### Total Carrier Delay as a Function of Aircraft Age (since MFR date)
+How does age since manufacture date affect total carrier delay?
+```{r mfr age tot carrier delay}
+ggplot(aircrafts_ages_since_2003, aes(x = AGE, y = TOT_CARRIER_DELAY / 60)) +
+  geom_point(alpha = 0.3, color = "slateblue") +
+  geom_smooth(method = "lm", se = TRUE, color = "pink") +
+  labs(
+    title = "Total Carrier Delay by Aircraft Age",
+    x = "Aircraft Age (years)",
+    y = "Total Carrier Delay (hours)"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5))
+```
+
+### AGE vs Average Carrier Delay Line Plot
+```{r line plot age vs tot carrier delay}
+# Wrangling
+avg_delay_by_mfr_age <- aircrafts_ages_since_2003 |>
+  group_by(AGE) |>
+  summarize(avg_delay_hrs = mean(TOT_CARRIER_DELAY / 60, na.rm = TRUE))
+
+# Plotting
+ggplot(avg_delay_by_mfr_age, aes(x = AGE, y = avg_delay_hrs)) +
+  geom_point(color = "plum2", size = 2) +
+  geom_smooth(method = "lm", se = FALSE, color = "springgreen2", linetype = "dashed") +
+  labs(
+    title = "Average Carrier Delay by Aircraft Age",
+    x = "Aircraft Age (years)",
+    y = "Average Carrier Delay (hours)"
+  ) +
+  scale_y_continuous(
+    breaks = c(5, 24, 48, 72, 168, 336),
+    labels = c("5 hrs", "1 day", "2 days", "3 days", "1 week", "2 weeks")
+  ) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+### Transforming the Delay Time
+There are too many delays spread over too wide a separation. Most planes are not delayed for days but some are delayed for many days.
+```{r transform delays}
+ggplot(aircrafts_ages_since_2003, aes(x = AGE, y = log(TOT_CARRIER_DELAY/60))) +
+  geom_point(alpha = 0.3, color = "thistle3") +
+  geom_smooth(method = "glm", se = TRUE, color = "darkolivegreen3") +
+  labs(
+    title = "Log-Transformed Carrier Delay by Aircraft Age",
+    x = "Aircraft Age (years)",
+    y = "log(Total Carrier Delay(hours))"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  )
+
+```
+
+### BoxPlot for MFR age vs Delays
+The delay values vary widely.
+```{r blox plot}
+ggplot(aircrafts_ages_since_2003, aes(x = factor(AGE), y = (TOT_CARRIER_DELAY/60))) +
+  geom_boxplot(fill = "thistle3", color = "darkblue", outlier.alpha = 0.2) +
+  labs(
+    title = "Aircraft Age vs Carrier Delays",
+    x = "Aircraft Age (years)",
+    y = "Total Carrier Delay"
+  ) +
+  scale_y_continuous(
+    breaks = c(5, 24, 48, 72, 168, 336),
+    labels = c("5 hrs", "1 day", "2 days", "3 days", "1 week", "2 weeks")
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+## Cancellations
+```{r wrangling for camcellations}
+# Wrangling
+avg_cancellations_by_age <- aircrafts_ages_since_2003 |>
+  group_by(AGE) |>
+  summarize(avg_cancellations = mean(COUNT_CARRIER_CANCELLATION, na.rm = TRUE))
+```
+
+### Age vs Cancellations Line Plot
+```{r cancellations line plot}
+ggplot(avg_cancellations_by_age, aes(x = AGE, y = avg_cancellations)) +
+  geom_line(color = "burlywood3") +
+  geom_point(color = "darkseagreen3") +
+  labs(
+    title = "Average Cancellations by Aircraft Age",
+    x = "Aircraft Age (years)",
+    y = "Average Annual Cancellations"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  )
+```

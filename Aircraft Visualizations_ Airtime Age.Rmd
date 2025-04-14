@@ -1,0 +1,148 @@
+---
+title: "Aircraft Visualization"
+author: "Group 5"
+date: "`r Sys.Date()`"
+output: openintro::lab_report
+---
+
+```{r load-packages, message=FALSE}
+library(tidyverse)
+library(openintro)
+library(ggplot2)
+```
+
+
+### Considerations
+1) airtime: continuous, carrier delay: continuous.
+2) all the plots are thrown off by the NA values
+
+### Importing the dataset
+
+```{r import data}
+# Import data
+aircrafts_ages_raw <- read.csv("ALL_YEARS_DATA.csv")
+
+# filter for aircraft age <= 22
+aircrafts_ages_since_2003 <- aircrafts_ages_raw |> 
+  filter(AGE <= 22) 
+
+# create flight bins
+aircrafts_ages_since_2003 <- aircrafts_ages_since_2003 |>
+  mutate(
+    airtime_bin = cut(
+      AIR_TIME,
+      breaks = c(0, 100, 500, 1000, 5000, 10000, 25000, 50000, 75000),
+      labels = c("0–100", "101–500", "501–1K", "1K–5K", "5K–10K", "10K–25K", "25K–50K", "50K–75K")
+    )
+  )
+
+# Wrangling
+avg_delay_by_airtime_age <- aircrafts_ages_since_2003 |>
+  group_by(airtime_bin) |>
+  summarize(avg_delay_hrs = mean(TOT_CARRIER_DELAY / 60, na.rm = TRUE))
+```
+
+
+### Total Carrier Delay as a Function of Aircraft Airtime 
+How does age as determined by time spent in the air affect total carrier delay?
+```{r airtime, age tot carrier delay}
+ggplot(aircrafts_ages_since_2003, aes(x = airtime_bin, y = TOT_CARRIER_DELAY / 60)) +
+  geom_point(alpha = 0.3, color = "slateblue", na.rm = TRUE) +
+  geom_smooth(method = "lm", se = TRUE, color = "pink", na.rm = TRUE) +
+  labs(
+    title = "Total Carrier Delay by Total Hours Flown by an Aircraft",
+    x = "Aircraft Age (airtime)",
+    y = "Total Carrier Delay (hours)"
+  ) + 
+  scale_x_discrete(  # Fix the x-axis to avoid scientific notation
+    labels = function(x) gsub('e[+-][0-9]+', '', x)  # Remove scientific notation
+  ) + scale_y_continuous(
+    breaks = c(5, 24, 48, 72, 168),
+    labels = c("5 hrs", "1 day", "2 days", "3 days", "1 week")
+  ) +
+  
+  theme(
+    plot.title = element_text(hjust = 0.5))
+
+#TODO: THE NA VALUES 
+```
+
+### AIRTIME vs Average Carrier Delay Line Plot
+```{r line plot airtime vs tot carrier delay}
+
+ggplot(avg_delay_by_airtime_age, aes(x = airtime_bin, y = avg_delay_hrs)) +
+  geom_point(color = "plum2", size = 5) +
+  geom_smooth(method = "lm", se = FALSE, color = "springgreen2", linetype = "dashed") +
+  labs(
+    title = "Average Carrier Delay by Aircraft Age",
+    x = "Aircraft Age (time spent flying)",
+    y = "Average Carrier Delay (hours)"
+  ) +
+  scale_y_continuous(
+    breaks = c(5, 24, 48, 72, 168, 336),
+    labels = c("5 hrs", "1 day", "2 days", "3 days", "1 week", "2 weeks")
+  ) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+### Transforming the Delay Time
+```{r transform delays}
+ggplot(aircrafts_ages_since_2003, aes(x = airtime_bin, y = log(TOT_CARRIER_DELAY / 60))) +
+  geom_point(alpha = 0.3, color = "thistle3") +
+  geom_smooth(method = "glm", se = TRUE, color = "darkolivegreen3") +
+  labs(
+    title = "Log-Transformed Carrier Delay by Aircraft Age",
+    x = "Aircraft Airtime Bin (hours)",
+    y = "log(Total Carrier Delay (hours))"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  )
+```
+
+### BoxPlot for MFR age vs Delays
+The delay values vary widely.
+```{r blox plot}
+ggplot(aircrafts_ages_since_2003, aes(x = airtime_bin, y = (TOT_CARRIER_DELAY/60))) +
+  geom_boxplot(fill = "thistle3", color = "darkblue", outlier.alpha = 0.2) +
+  labs(
+    title = "Aircraft Total Airtime vs Carrier Delays",
+    x = "Aircraft Age (in time spent flying)",
+    y = "Total Carrier Delay"
+  ) +
+  scale_y_continuous(
+    breaks = c(5, 24, 48, 72, 168, 336),
+    labels = c("5 hrs", "1 day", "2 days", "3 days", "1 week", "2 weeks")
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+## Cancellations
+```{r wrangling for cancellations}
+# Wrangling
+avg_cancellations_by_age <- aircrafts_ages_since_2003 |>
+  group_by(airtime_bin) |>
+  summarize(avg_cancellations = mean(COUNT_CARRIER_CANCELLATION, na.rm = TRUE))
+```
+
+### Age vs Cancellations Line Plot
+```{r cancellations line plot}
+ggplot(avg_cancellations_by_age, aes(x = airtime_bin, y = avg_cancellations)) +
+  geom_line(color = "burlywood3") +
+  geom_point(color = "darkseagreen3", size = 5) +
+  labs(
+    title = "Average Cancellations by Aircraft Total Airtime",
+    x = "Aircraft Age (in time spent flying)",
+    y = "Average Annual Cancellations"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  )
+```
+
+
+
