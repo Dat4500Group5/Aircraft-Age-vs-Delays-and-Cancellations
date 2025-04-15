@@ -110,7 +110,7 @@ ggplot(aircrafts_ages_since_2003, aes(x = factor(flight_bin), y = (TOT_CARRIER_D
     x = "Aircraft Age (number of flights)",
     y = "Total Carrier Delay"
   ) +
-  scale_y_continuous(
+  scale_y_log10(
     breaks = c(5, 24, 48, 72, 168, 336),
     labels = c("5 hrs", "1 day", "2 days", "3 days", "1 week", "2 weeks")
   ) +
