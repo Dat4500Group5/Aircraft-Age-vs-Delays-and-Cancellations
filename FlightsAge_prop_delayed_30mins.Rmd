@@ -1,5 +1,5 @@
 ---
-title: "Proportion of Aircraft Delayed more than 30 mins by Distance Age"
+title: "Proportion of Aircraft Delayed more than 30 mins by Total Flghts Age"
 author: "Author Name"
 date: "`r Sys.Date()`"
 output: openintro::lab_report
