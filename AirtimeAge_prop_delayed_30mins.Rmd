@@ -1,0 +1,70 @@
+---
+title: "Proportion of Aircraft Delayed more than 30 mins by Airtime Age"
+author: "Author Name"
+date: "`r Sys.Date()`"
+output: openintro::lab_report
+---
+
+```{r load-packages, message=FALSE}
+library(tidyverse)
+library(openintro)
+library(ggplot2)
+```
+
+What proportion of flights are more than 30 minutes late?
+
+### Importing the data
+```{r data importing}
+aircrafts_ages_raw <- read.csv("SKYS_THE_LIMIT.csv")
+```
+
+### Wrangling the data
+narrow the data to a subset of flights that are delayed by more than 30 mins.
+```{r data wrangling}
+
+#separate into ages (group by and summarize)
+aircrafts_ages_since_2003 <- aircrafts_ages_raw |>
+  filter(AGE <= 22) |>
+  mutate(
+    airtime_bin = cut(
+      AIR_TIME,
+      breaks = c(0, 60, 300, 720, 1440, 2160, 4320, 7200, 14400, 28800),
+      labels = c(
+        "<1 hr",
+        "1–5 hrs",
+        "6–12 hrs",
+        "13 hrs–1 day",
+        "1.5 days",
+        "3 days",
+        "2–5 days",
+        "5–10 days",
+        "10–20 days"
+      )
+    )
+  )
+
+
+delay_by_age <- aircrafts_ages_since_2003 |>
+  group_by(airtime_bin) |>
+  summarize(
+    total_aircraft = n(),
+    num_delayed = sum(TOT_CARRIER_DELAY > 30, na.rm = TRUE),
+    proportion_delayed = num_delayed / total_aircraft
+  )
+
+
+View(delay_by_age)
+```
+
+### First Visualization
+```{r first visualization}
+ggplot(delay_by_age, aes(x = airtime_bin, y = proportion_delayed*100, group = 1)) +
+  geom_line(color = "thistle3") +
+  geom_point(color = "darkblue", size = 3) +
+  labs(
+    title = "Percentage of Aircraft Delayed >30 mins by Airtime",
+    x = "Aircraft Age (total airtime)",
+    y = "Percentage Delayed"
+  ) 
+
+```
