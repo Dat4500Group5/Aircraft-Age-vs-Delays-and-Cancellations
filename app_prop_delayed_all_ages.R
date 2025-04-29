@@ -6,6 +6,12 @@ library(dplyr)
 aircrafts_ages_raw <- read.csv("SKYS_THE_LIMIT.csv")
 
 # Process data
+
+#delay count/ flight count
+aircraft_with_prop <- aircrafts_ages_raw |>
+  carrier_delay_prop <- COUNT_CARRIER_DELAY/FLIGHTS|> 
+  filter(!is.na(AIR_TIME), !is.na(airtime_bin), !is.na(TOT_CARRIER_DELAY))
+
 aircrafts_ages_since_2003 <- aircrafts_ages_raw |>
   filter(AGE <= 22) |>
   mutate(

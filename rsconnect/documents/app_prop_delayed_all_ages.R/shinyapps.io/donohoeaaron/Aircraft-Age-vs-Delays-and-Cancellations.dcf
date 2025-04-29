@@ -1,0 +1,12 @@
+name: Aircraft-Age-vs-Delays-and-Cancellations
+title: Aircraft-Age-vs-Delays-and-Cancellations
+username: donohoeaaron
+account: donohoeaaron
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 14641132
+bundleId:
+url: https://donohoeaaron.shinyapps.io/Aircraft-Age-vs-Delays-and-Cancellations/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
