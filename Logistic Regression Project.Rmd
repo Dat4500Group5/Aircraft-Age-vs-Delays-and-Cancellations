@@ -1,0 +1,203 @@
+---
+title: "Logistic Regression"
+author: "Group 5"
+date: "`r Sys.Date()`"
+output: openintro::lab_report
+---
+
+```{r load-packages, message=FALSE}
+library(tidyverse)
+library(openintro)
+library(ggplot2)
+library(dplyr)
+```
+
+### Import data
+Ratios_2 <- read.csv("Ratios_2.csv")
+
+
+
+<!-- ### Scatterplot which shows the observed proportion of planes that were delayed over 30 mins vs Aircraft AGE -->
+<!-- ```{r prop planes delayed over 30 mins} -->
+<!-- age_means <- aggregate(COUNT_CARRIER_DELAY_30_RATIO ~ AGE, data = Ratios_2, FUN = mean) -->
+
+<!-- real_data_plot <- ggplot(age_means, aes(x=AGE, y=COUNT_CARRIER_DELAY_30_RATIO)) + -->
+<!--   geom_point() + -->
+<!--   labs(x = "Age of Aircraft (years)", y = "Proportion Delayed 30 mins") -->
+
+<!-- plot(real_data_plot) -->
+<!-- ``` -->
+
+<!-- ### Linear Regression Model using AGE as the only predictor -->
+<!-- ```{r math} -->
+<!-- m1 <- glm(COUNT_CARRIER_DELAY_30_RATIO ~ AGE, data = Ratios_2, family = binomial) -->
+<!-- summary(m1) -->
+<!-- ``` -->
+
+<!-- ### PLotting Linear Regression Model -->
+<!-- ```{r linear model plotting} -->
+<!-- # Plot the observed data -->
+<!-- plot(age_means$AGE, age_means$COUNT_CARRIER_DELAY_30_RATIO, -->
+<!--      xlab = "Age of Aircraft (years)", -->
+<!--      ylab = "Proportion Delayed 30 mins", -->
+<!--      pch = 16, col = "blue", -->
+<!--      main = "Observed Data with Linear Regression Model") -->
+
+<!-- # Sequence of ages for smooth prediction curves -->
+<!-- age_seq <- seq(min(age_means$AGE), max(age_means$AGE), length.out = 200) -->
+
+<!-- # Linear model predictions -->
+<!-- coefs1 <- coef(m1) -->
+<!-- logits1 <- coefs1["(Intercept)"] + coefs1["AGE"] * age_seq -->
+<!-- probs1 <- exp(logits1) / (1 + exp(logits1)) -->
+
+<!-- # Add model prediction line for m1 -->
+<!-- lines(age_seq, probs1, col = "red", lwd = 2) -->
+
+<!-- # Add horizontal dashed line at mean observed proportion delayed -->
+<!-- abline(h = mean(age_means$COUNT_CARRIER_DELAY_30_RATIO), col = "gray", lty = 2) -->
+<!-- ``` -->
+
+<!-- ### Quadratic Model using AGE and AGE^2 -->
+<!-- and testing it: a 5 year old plane should have a avg delay proportion of 0.0389 -->
+<!-- ```{r quadratic model} -->
+<!-- # quadratic model using both mage and mageˆ2 as predictors -->
+<!-- m2 <- glm(COUNT_CARRIER_DELAY_30_RATIO ~ AGE + I(AGE^2), data = Ratios_2, family = binomial) -->
+<!-- summary(m2) -->
+
+<!-- # Calculate logit and probability for a 5-year-old plane -->
+<!-- m2logit_5 <- coef(m2)["(Intercept)"] + coef(m2)["AGE"] * 5 + coef(m2)["I(AGE^2)"] * 5^2 -->
+<!-- print(m2logit_5) -->
+<!-- # Convert logit to probability -->
+<!-- m2prob_5 <- exp(m2logit_5) / (1 + exp(m2logit_5)) -->
+<!-- print(m2prob_5) -->
+<!-- ``` -->
+
+<!-- ### Plotting Quadratic Model -->
+<!-- ```{r quadratic model plotting} -->
+<!-- # Plot the observed data -->
+<!-- plot(age_means$AGE, age_means$COUNT_CARRIER_DELAY_30_RATIO, -->
+<!--      xlab = "Age of Aircraft (years)", -->
+<!--      ylab = "Proportion Delayed 30 mins", -->
+<!--      pch = 16, col = "blue", -->
+<!--      main = "Observed Data with Logistic Regression Model") -->
+
+<!-- # Sequence of ages for smooth prediction curves -->
+<!-- age_seq <- seq(min(age_means$AGE), max(age_means$AGE), length.out = 200) -->
+
+<!-- # Quadratic model predictions -->
+<!-- coefs2 <- coef(m2) -->
+<!-- logits2 <- coefs2["(Intercept)"] + coefs2["AGE"] * age_seq + coefs2["I(AGE^2)"] * age_seq^2 -->
+<!-- probs2 <- exp(logits2) / (1 + exp(logits2)) -->
+
+<!-- # Add model prediction line for m2 -->
+<!-- lines(age_seq, probs2, col = "darkgreen", lwd = 2) -->
+
+<!-- # Add horizontal dashed line at mean observed proportion delayed -->
+<!-- abline(h = mean(age_means$COUNT_CARRIER_DELAY_30_RATIO), col = "gray", lty = 2) -->
+<!-- ``` -->
+
+### Cubic Model (best)
+```{r cubic model}
+m3 <- glm(COUNT_CARRIER_DELAY_30_RATIO ~ AGE + I(AGE^2) + I(AGE^3), 
+          data = Ratios_2, 
+          family = binomial)
+summary(m3)
+```
+### Plotting cubic model Age vs Delay30
+```{r cubic model plot}
+# real data 
+plot(age_means$AGE, age_means$COUNT_CARRIER_DELAY_30_RATIO,
+     xlab = "Age of Aircraft (years)",
+     ylab = "Proportion Delayed 30 mins",
+     pch = 16, col = "blue",
+     main = "Observed Data with Cubic Model")
+
+# Sequence of ages for smooth prediction curves
+age_seq <- seq(min(age_means$AGE), max(age_means$AGE), length.out = 200)
+
+# Cubic model predictions
+coefs3 <- coef(m3)
+logits3 <- coefs3["(Intercept)"] + 
+           coefs3["AGE"] * age_seq + 
+           coefs3["I(AGE^2)"] * age_seq^2 + 
+           coefs3["I(AGE^3)"] * age_seq^3
+probs3 <- exp(logits3) / (1 + exp(logits3))
+
+
+lines(age_seq, probs3, col = "red", lwd = 2)
+```
+
+<!-- ### Quartic Model -->
+<!-- ```{r quartic model} -->
+<!-- m4 <- glm(COUNT_CARRIER_DELAY_30_RATIO ~ AGE + I(AGE^2) + I(AGE^3) + I(AGE^4), -->
+<!--           data = Ratios_2, family = binomial) -->
+<!-- summary(m4) -->
+<!-- ``` -->
+
+<!-- ### Plotting Quartic Model -->
+<!-- there is no significant difference between the quartic model graph and the cubic model graph -->
+<!-- ```{r quartic model plot} -->
+<!-- # Plot the observed data -->
+<!-- plot(age_means$AGE, age_means$COUNT_CARRIER_DELAY_30_RATIO, -->
+<!--      xlab = "Age of Aircraft (years)", -->
+<!--      ylab = "Proportion Delayed 30 mins", -->
+<!--      pch = 16, col = "blue", -->
+<!--      main = "Observed Data with Quartic Model") -->
+
+<!-- # Sequence of ages for smooth prediction curves -->
+<!-- age_seq <- seq(min(age_means$AGE), max(age_means$AGE), length.out = 200) -->
+
+<!-- # Quartic model predictions -->
+<!-- coefs4 <- coef(m4) -->
+<!-- logits4 <- coefs4["(Intercept)"] +  -->
+<!--            coefs4["AGE"] * age_seq +  -->
+<!--            coefs4["I(AGE^2)"] * age_seq^2 +  -->
+<!--            coefs4["I(AGE^3)"] * age_seq^3 +  -->
+<!--            coefs4["I(AGE^4)"] * age_seq^4 -->
+<!-- probs4 <- exp(logits4) / (1 + exp(logits4)) -->
+
+<!-- # Add model prediction line -->
+<!-- lines(age_seq, probs4, col = "darkgreen", lwd = 2) -->
+<!-- ``` -->
+
+
+*****
+
+
+### Linear model for Age vs Cancellations
+```{r cubic model cancellations}
+m1.5 <- glm(Proportion_Cancelled ~ AGE, data = Ratios_2, family = binomial)
+summary(m1.5)
+```
+
+### Linear model plot for age vs cancellations 
+The real values do seem to follow a linear pattern.
+These predicted probabilities are very small (between 0.013% and 0.13%).
+The prediction curve is basically flat.
+The model sees almost no meaningful relationship between aircraft age and cancellation rate
+``` {r cubic model for cancellations plot}
+# Plot the observed data
+plot(age_means$AGE, age_means$Proportion_Cancelled,
+     xlab = "Age of Aircraft (years)",
+     ylab = "Proportion Cancelled",
+     pch = 16, col = "blue",
+     main = "Observed Data with Linear Regression Model")
+
+# Sequence of ages for smooth prediction curves
+age_seq <- seq(min(age_means$AGE), max(age_means$AGE), length.out = 200)
+
+# Linear model predictions
+coefs1.5 <- coef(m1.5)
+logits1.5 <- coefs1.5["(Intercept)"] + coefs1.5["AGE"] * age_seq
+probs1.5 <- exp(logits1.5) / (1 + exp(logits1.5))
+
+# Add model prediction line for m1
+lines(age_seq, probs1.5, col = "red", lwd = 2)
+
+# Add horizontal dashed line at mean observed proportion delayed
+abline(h = mean(age_means$Proportion_Cancelled), col = "gray", lty = 2)
+
+# printing the probability to explain why the line is flat
+range(probs1.5)
+```
