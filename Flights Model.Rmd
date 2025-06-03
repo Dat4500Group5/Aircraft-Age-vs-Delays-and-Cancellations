@@ -1,0 +1,111 @@
+---
+title: "Logistic Regression"
+author: "Group 5"
+date: "`r Sys.Date()`"
+output: openintro::lab_report
+---
+
+```{r load-packages, messages=FALSE}
+library(tidyverse)
+library(openintro)
+library(ggplot2)
+library(dplyr)
+```
+
+### Import data
+Ratios_2 <- read.csv("Ratios_2.csv")
+
+
+
+### Scatterplot which shows the observed proportion of planes that were delayed over 30 mins vs Aircraft FLIGHTS
+```{r prop planes delayed over 30 mins}
+Ratios_2$FLIGHTS_BIN <- round(Ratios_2$FLIGHTS, -3)  # e.g., round to nearest 1000
+
+FLIGHTS_means <- Ratios_2 |>
+  group_by(FLIGHTS_BIN) |>
+  summarize(
+    COUNT_CARRIER_DELAY_30_RATIO = mean(COUNT_CARRIER_DELAY_30_RATIO, na.rm = TRUE)
+  )
+
+real_data_plot <- ggplot(FLIGHTS_means, aes(x=FLIGHTS_BIN, y=COUNT_CARRIER_DELAY_30_RATIO)) +
+  geom_point() +
+  labs(x = "FLIGHTS of Aircraft (total)", y = "Proportion Delayed 30 mins")
+
+plot(real_data_plot)
+```
+
+
+### Cubic Model (best)
+```{r cubic model}
+# Remove top 1% of FLIGHTS values
+cutoff <- quantile(Ratios_2$FLIGHTS, 0.99, na.rm = TRUE)
+Ratios_trimmed <- Ratios_2 |> filter(FLIGHTS <= cutoff)
+
+
+# Step 1: Fit the cubic model on the raw data
+m3 <- glm(COUNT_CARRIER_DELAY_30_RATIO ~ FLIGHTS + I(FLIGHTS^2) + I(FLIGHTS^3),
+          data = Ratios_trimmed, family = binomial)
+
+# Step 2: Create the plot of observed (binned) data
+plot(FLIGHTS_means$FLIGHTS_BIN, FLIGHTS_means$COUNT_CARRIER_DELAY_30_RATIO,
+     xlab = "FLIGHTS of Aircraft (binned to nearest 1000)",
+     ylab = "Proportion Delayed 30 mins",
+     pch = 16, col = "blue",
+     main = "Observed Data with Cubic Model")
+
+# Step 3: Create a smooth sequence of FLIGHTS for predictions
+FLIGHTS_seq <- seq(min(FLIGHTS_means$FLIGHTS_BIN), max(FLIGHTS_means$FLIGHTS_BIN), length.out = 200)
+
+# Step 4: Predict using cubic model coefficients
+coefs3 <- coef(m3)
+logits3 <- coefs3["(Intercept)"] + 
+           coefs3["FLIGHTS"] * FLIGHTS_seq + 
+           coefs3["I(FLIGHTS^2)"] * FLIGHTS_seq^2 + 
+           coefs3["I(FLIGHTS^3)"] * FLIGHTS_seq^3
+probs3 <- exp(logits3) / (1 + exp(logits3))
+
+# Step 5: Overlay the model prediction line
+lines(FLIGHTS_seq, probs3, col = "red", lwd = 2)
+
+```
+
+
+*****
+
+
+### Linear model for FLIGHTS vs Cancellations
+```{r cubic model cancellations}
+m1.5 <- glm(Proportion_Cancelled ~ FLIGHTS, data = Ratios_2, family = binomial)
+summary(m1.5)
+```
+
+### Linear model plot for FLIGHTS vs cancellations 
+The real values do seem to follow a linear pattern.
+These predicted probabilities are very small (between 0.013% and 0.13%).
+The prediction curve is basically flat.
+The model sees almost no meaningful relationship between aircraft FLIGHTS and cancellation rate
+``` {r cubic model for cancellations plot}
+# Plot the observed data
+plot(FLIGHTS_means$FLIGHTS, FLIGHTS_means$Proportion_Cancelled,
+     xlab = "FLIGHTS of Aircraft (years)",
+     ylab = "Proportion Cancelled",
+     pch = 16, col = "blue",
+     main = "Observed Data with Linear Regression Model")
+
+# Sequence of FLIGHTSs for smooth prediction curves
+FLIGHTS_seq <- seq(min(FLIGHTS_means$FLIGHTS), max(FLIGHTS_means$FLIGHTS), length.out = 200)
+
+# Linear model predictions
+coefs1.5 <- coef(m1.5)
+logits1.5 <- coefs1.5["(Intercept)"] + coefs1.5["FLIGHTS"] * FLIGHTS_seq
+probs1.5 <- exp(logits1.5) / (1 + exp(logits1.5))
+
+# Add model prediction line for m1
+lines(FLIGHTS_seq, probs1.5, col = "red", lwd = 2)
+
+# Add horizontal dashed line at mean observed proportion delayed
+abline(h = mean(FLIGHTS_means$Proportion_Cancelled), col = "gray", lty = 2)
+
+# printing the probability to explain why the line is flat
+range(probs1.5)
+```
