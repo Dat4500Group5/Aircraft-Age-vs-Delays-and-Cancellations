@@ -1,0 +1,271 @@
+HIRatios_2_means <- HIRatios_2 |>
+  group_by(AGE) |>
+  summarize(
+    COUNT_CARRIER_DELAY_30_PROPORTION = mean(COUNT_CARRIER_DELAY_30_RATIO, na.rm = TRUE),
+    COUNT_CARRIER_DELAY_PROPORTION = mean(COUNT_CARRIER_DELAY_RATIO, na.rm = TRUE),
+    LATE_AIRCRAFT_DELAY_30_PROPORTION = mean(LATE_AIRCRAFT_DELAY_30_RATIO, na.rm = TRUE),
+    COUNT_CARRIER_CANCELLATION_PROPORTION = mean(COUNT_CARRIER_CANCELLATION_RATIO, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+library(dplyr)
+
+age_counts <- HIRatios_2 %>%
+  group_by(AGE) %>%
+  summarise(num_planes = n())
+
+HIRatios_2_means <- HIRatios_2_means %>%
+  left_join(age_counts, by = "AGE")
+
+# Plot 1: Delay 30 mins
+p1 <- ggplot(HIRatios_2_means, aes(x = AGE, y = COUNT_CARRIER_DELAY_30_PROPORTION)) +
+  geom_point(aes(size = num_planes)) +
+  labs(x = "Age of Aircraft (years)", y = "Proportion Delayed 30+ mins", size = "Number of Planes")
+
+# Plot 2: Carrier Delay
+p2 <- ggplot(HIRatios_2_means, aes(x = AGE, y = COUNT_CARRIER_DELAY_PROPORTION)) +
+  geom_point(aes(size = num_planes)) +
+  labs(x = "Age of Aircraft (years)", y = "Proportion of Carrier Delays", size = "Number of Planes")
+
+# Plot 3: Late Aircraft Delay
+p3 <- ggplot(HIRatios_2_means, aes(x = AGE, y = LATE_AIRCRAFT_DELAY_30_PROPORTION)) +
+  geom_point(aes(size = num_planes)) +
+  labs(x = "Age of Aircraft (years)", y = "Proportion of Late Aircraft Delays 30+", size = "Number of Planes")
+
+# Plot 4: Cancellations
+p4 <- ggplot(HIRatios_2_means, aes(x = AGE, y = COUNT_CARRIER_CANCELLATION_PROPORTION)) +
+  geom_point(aes(size = num_planes)) +
+  labs(x = "Age of Aircraft (years)", y = "Proportion of Cancellations", size = "Number of Planes")
+
+# Display plots
+print(p1)
+print(p2)
+print(p3)
+print(p4)
+```
+
+
+
+### AIR_TIME
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Step 1: Prepare bin sizes from age_counts
+airtime_bin_sizes <- age_counts$num_planes
+total_planes <- sum(airtime_bin_sizes)
+cum_props <- cumsum(airtime_bin_sizes) / total_planes
+
+# Step 2: Sort and filter valid AIR_TIME
+HIRatios_2_sorted_AT <- HIRatios_2 %>%
+  filter(AIR_TIME > 0) %>%
+  arrange(AIR_TIME)
+
+# Step 3: Get breaks
+airtime_breaks <- quantile(HIRatios_2_sorted_AT$AIR_TIME, probs = cum_props, na.rm = TRUE)
+
+# Step 4: Assign bins
+HIRatios_2_sorted_AT <- HIRatios_2_sorted_AT %>%
+  mutate(
+    bin = cut(AIR_TIME, breaks = c(-Inf, airtime_breaks), labels = FALSE, include.lowest = TRUE)
+  )
+
+# Step 5: Aggregate by bin
+AIR_TIME_means <- HIRatios_2_sorted_AT %>%
+  group_by(bin) %>%
+  summarize(
+    AIR_TIME = mean(AIR_TIME, na.rm = TRUE) / (60 * 24),  # Convert to days
+    COUNT_CARRIER_DELAY_30_PROPORTION = mean(COUNT_CARRIER_DELAY_30_RATIO, na.rm = TRUE),
+    COUNT_CARRIER_DELAY_PROPORTION = mean(COUNT_CARRIER_DELAY_RATIO, na.rm = TRUE),
+    LATE_AIRCRAFT_DELAY_30_PROPORTION = mean(LATE_AIRCRAFT_DELAY_30_RATIO, na.rm = TRUE),
+    COUNT_CARRIER_CANCELLATION_PROPORTION = mean(COUNT_CARRIER_CANCELLATION_RATIO, na.rm = TRUE),
+    num_planes = n(),
+    .groups = "drop"
+  )
+
+# Step 6: Model fitting
+# Create sequence of AIR_TIME in minutes
+airtime_seq <- data.frame(AIR_TIME = seq(min(HIRatios_2$AIR_TIME, na.rm = TRUE),
+                                         max(HIRatios_2$AIR_TIME, na.rm = TRUE),
+                                         length.out = 200))
+
+# Model 1: Delay 30+ mins (logistic regression)
+ma1 <- glm(COUNT_CARRIER_DELAY_30_RATIO ~ AIR_TIME + I(AIR_TIME^2) +
+                    I(AIR_TIME^3) + I(AIR_TIME^4),
+                    data = HIRatios_2,
+                    weights = FLIGHTS, 
+                    family = binomial)
+
+airtime_seq$pred1 <- predict(ma1, newdata = airtime_seq, type = "response")
+
+# Model 2: Cancellations (logistic regression)
+ma2 <- glm(COUNT_CARRIER_CANCELLATION_RATIO ~ AIR_TIME + I(AIR_TIME^2),
+              data = HIRatios_2, weights = FLIGHTS, family = binomial)
+airtime_seq$pred2 <- predict(ma2, newdata = airtime_seq, type = "response")
+
+# Convert x-axis to days for plotting
+airtime_seq$AIR_TIME_DAYS <- airtime_seq$AIR_TIME / (60 * 24)
+
+# Step 7: Plots
+# Delay 30+
+a1 <- ggplot(AIR_TIME_means, aes(x = AIR_TIME, y = COUNT_CARRIER_DELAY_30_PROPORTION)) +
+  geom_point(aes(size = num_planes)) +
+  geom_line(data = airtime_seq, aes(x = AIR_TIME_DAYS, y = pred1), color = "red", size = 1) +
+  labs(x = "Cumulative Air Time per Aircraft (days)", y = "Proportion Delayed 30+ mins", size = "Number of Planes")
+
+# Cancellations
+a2 <- ggplot(AIR_TIME_means, aes(x = AIR_TIME, y = COUNT_CARRIER_CANCELLATION_PROPORTION)) +
+  geom_point(aes(size = num_planes)) +
+  geom_line(data = airtime_seq, aes(x = AIR_TIME_DAYS, y = pred2), color = "purple", size = 1) +
+  labs(x = "Cumulative Air Time per Aircraft (days)", y = "Proportion of Cancellations", size = "Number of Planes")
+
+print(a1)
+print(a2)
+
+summary(ma1)
+summary(ma2)
+
+```
+
+### Distance
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Bin data by cumulative proportions (based on AGE counts)
+age_bin_sizes <- age_counts$num_planes
+total_planes <- sum(age_bin_sizes)
+cum_props <- cumsum(age_bin_sizes) / total_planes
+
+# Filter and sort
+HIRatios_2_sorted_DIST <- HIRatios_2 %>%
+  filter(DISTANCE > 0) %>%
+  arrange(DISTANCE)
+
+# Bin breaks using quantiles
+distance_breaks <- quantile(HIRatios_2_sorted_DIST$DISTANCE, probs = cum_props, na.rm = TRUE)
+
+# Assign DISTANCE bins
+HIRatios_2_sorted_DIST <- HIRatios_2_sorted_DIST %>%
+  mutate(
+    bin = cut(DISTANCE, breaks = c(-Inf, distance_breaks), labels = FALSE, include.lowest = TRUE)
+  )
+
+# Aggregate by bin
+DISTANCE_means <- HIRatios_2_sorted_DIST %>%
+  group_by(bin) %>%
+  summarize(
+    DISTANCE = mean(DISTANCE, na.rm = TRUE) / 1000,  # Convert to thousands of miles
+    COUNT_CARRIER_DELAY_30_PROPORTION = mean(COUNT_CARRIER_DELAY_30_RATIO, na.rm = TRUE),
+    COUNT_CARRIER_DELAY_PROPORTION = mean(COUNT_CARRIER_DELAY_RATIO, na.rm = TRUE),
+    LATE_AIRCRAFT_DELAY_30_PROPORTION = mean(LATE_AIRCRAFT_DELAY_30_RATIO, na.rm = TRUE),
+    COUNT_CARRIER_CANCELLATION_PROPORTION = mean(COUNT_CARRIER_CANCELLATION_RATIO[COUNT_CARRIER_CANCELLATION_RATIO != 0], na.rm = TRUE),
+    num_planes = n(),
+    .groups = "drop"
+  )
+
+# Create DISTANCE sequence for predictions (in raw miles)
+distance_seq <- data.frame(DISTANCE = seq(min(HIRatios_2_sorted_DIST$DISTANCE, na.rm = TRUE),
+                                          max(HIRatios_2_sorted_DIST$DISTANCE, na.rm = TRUE),
+                                          length.out = 200))
+
+# Model 1: Delay 30+ mins (logistic)
+md1 <-  glm(COUNT_CARRIER_DELAY_30_RATIO ~ DISTANCE + I(DISTANCE^2) + I(DISTANCE^3), 
+    family = binomial, 
+    weight = FLIGHTS,
+    data = HIRatios_2_sorted_DIST)
+distance_seq$pred1 <- predict(md1, newdata = distance_seq, type = "response")
+
+# Model 2: Cancellations (logistic with quadratic only)
+md2 <- glm(COUNT_CARRIER_CANCELLATION_RATIO ~ DISTANCE + I(DISTANCE^2) + I(DISTANCE^3)  ,
+          data = HIRatios_2_sorted_DIST, weights = FLIGHTS, family = binomial, subset = COUNT_CARRIER_CANCELLATION_RATIO != 0)
+distance_seq$pred2 <- predict(md2, newdata = distance_seq, type = "response")
+
+# Plot 1: Delay 30+ mins
+d1 <- ggplot(DISTANCE_means, aes(x = DISTANCE, y = COUNT_CARRIER_DELAY_30_PROPORTION)) +
+  geom_point(aes(size = num_planes)) +
+  geom_line(data = distance_seq %>% mutate(DISTANCE = DISTANCE / 1000), 
+            aes(x = DISTANCE, y = pred1), color = "red", size = 1) +
+  labs(x = "Cumulative Distance per Aircraft (thousands of miles)", y = "Proportion Delayed 30+ mins", size = "Number of Planes",
+       title = "Carrier Delay 30+ Minutes vs Aircraft Distance")
+
+# Plot 2: Cancellations
+d2 <- ggplot(DISTANCE_means, aes(x = DISTANCE, y = COUNT_CARRIER_CANCELLATION_PROPORTION)) +
+  geom_point(aes(size = num_planes)) +
+  geom_line(data = distance_seq %>% mutate(DISTANCE = DISTANCE / 1000), 
+            aes(x = DISTANCE, y = pred2), color = "purple", size = 1) +
+  labs(x = "Cumulative Distance per Aircraft (thousands of miles)", y = "Proportion of Cancellations", size = "Number of Planes",
+       title = "Carrier Cancellations vs Aircraft Distance")
+
+# Show plots
+print(d1)
+print(d2)
+
+# View summaries
+summary(md1)
+summary(md2)
+
+AIC(ma1, md1, m1)
+BIC(ma1, md1, m1)
+```
+
+
+### AGE
+```{r}
+# Summary by AGE
+HIRatios_2_means <- HIRatios_2 %>%
+  group_by(AGE) %>%
+  summarize(
+    COUNT_CARRIER_DELAY_30_PROPORTION = mean(COUNT_CARRIER_DELAY_30_RATIO, na.rm = TRUE),
+    COUNT_CARRIER_DELAY_PROPORTION = mean(COUNT_CARRIER_DELAY_RATIO, na.rm = TRUE),
+    LATE_AIRCRAFT_DELAY_30_PROPORTION = mean(LATE_AIRCRAFT_DELAY_30_RATIO, na.rm = TRUE),
+    COUNT_CARRIER_CANCELLATION_PROPORTION = mean(COUNT_CARRIER_CANCELLATION_RATIO, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+# Plane count per AGE
+age_counts <- HIRatios_2 %>%
+  group_by(AGE) %>%
+  summarise(num_planes = n())
+
+HIRatios_2_means <- HIRatios_2_means %>%
+  left_join(age_counts, by = "AGE")
+
+# Create AGE sequence
+age_seq <- data.frame(AGE = seq(min(HIRatios_2$AGE, na.rm = TRUE),
+                                max(HIRatios_2$AGE, na.rm = TRUE),
+                                length.out = 200))
+
+# Model 1: COUNT_CARRIER_DELAY_30_PROPORTION (logistic regression)
+m1 <- glm(COUNT_CARRIER_DELAY_30_RATIO ~ AGE + I(AGE^2) + I(AGE^3),
+          data = HIRatios_2, weights = FLIGHTS, family = binomial)
+age_seq$pred1 <- predict(m1, newdata = age_seq, type = "response")
+
+
+# Model 3: COUNT_CARRIER_CANCELLATION_PROPORTION (OLS)
+m2 <- glm(COUNT_CARRIER_CANCELLATION_RATIO ~ AGE + I(AGE^2), data = HIRatios_2, weights = FLIGHTS, family = binomial)
+age_seq$pred2 <- predict(m2, newdata = age_seq, type = "response")
+
+# Plot 1: Delay 30 mins
+p1 <- ggplot(HIRatios_2_means, aes(x = AGE, y = COUNT_CARRIER_DELAY_30_PROPORTION)) +
+  geom_point(aes(size = num_planes)) +
+  geom_line(data = age_seq, aes(x = AGE, y = pred1), color = "red", size = 1) +
+  labs(x = "Age of Aircraft (years)", y = "Proportion Delayed 30+ mins", size = "Number of Planes",
+       title = "Carrier Delay 30+ Minutes vs Aircraft Age")
+
+# Plot 4: Cancellations
+p2 <- ggplot(HIRatios_2_means, aes(x = AGE, y = COUNT_CARRIER_CANCELLATION_PROPORTION)) +
+  geom_point(aes(size = num_planes)) +
+  geom_line(data = age_seq, aes(x = AGE, y = pred2), color = "purple", size = 1) +
+  labs(x = "Age of Aircraft (years)", y = "Proportion of Cancellations", size = "Number of Planes",
+       title = "Carrier Cancellations vs Aircraft Age")
+
+# Show plots
+print(p1)
+print(p2)
+
+summary(m1)
+summary(m2)
+```
